@@ -1,0 +1,158 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "bfs.h"
+#include "graph.h"
+
+#define NUMELEMENTS 8
+
+int isExitReachable(Graph *pMaze, char entrance, char exit);
+int matchStrings(const void *data1, const void *data2);
+BfsVertex *findVertex(Graph *pMaze, const void *data);
+
+int main()
+{
+    Graph maze1, maze2;
+    /* 
+     * char array padded with extra element so array index corresponds to letter
+     * index
+     */
+    char MazeRooms[NUMELEMENTS] = {' ', 'A', 'B', 'C', 'D', 'E', 'F', 'G'};
+
+    /* builds vertices for each room name */
+    BfsVertex MazeVertex[NUMELEMENTS];
+    for (int count = 1; count < NUMELEMENTS; ++count)
+    {
+        MazeVertex[count].color = white;
+        MazeVertex[count].hops = 0;
+        MazeVertex[count].data = &MazeRooms[count];
+    }
+
+    /* initialize both mazes */
+    graph_init(&maze1, matchStrings, NULL);
+    graph_init(&maze2, matchStrings, NULL);
+
+    /* insert vertices for both mazes */
+    for (int count = 1; count < NUMELEMENTS; ++count)
+    {
+        graph_ins_vertex(&maze1, &MazeVertex[count]);
+        graph_ins_vertex(&maze2, &MazeVertex[count]);
+    }
+
+    /* insert edges for Maze 1 */
+    graph_ins_edge(&maze1, &MazeVertex[1], &MazeVertex[3]);
+    graph_ins_edge(&maze1, &MazeVertex[1], &MazeVertex[4]);
+    graph_ins_edge(&maze1, &MazeVertex[2], &MazeVertex[4]);
+    graph_ins_edge(&maze1, &MazeVertex[3], &MazeVertex[1]);
+    graph_ins_edge(&maze1, &MazeVertex[3], &MazeVertex[6]);
+    graph_ins_edge(&maze1, &MazeVertex[4], &MazeVertex[1]);
+    graph_ins_edge(&maze1, &MazeVertex[4], &MazeVertex[2]);
+    graph_ins_edge(&maze1, &MazeVertex[4], &MazeVertex[5]);
+    graph_ins_edge(&maze1, &MazeVertex[4], &MazeVertex[7]);
+    graph_ins_edge(&maze1, &MazeVertex[5], &MazeVertex[4]);
+    graph_ins_edge(&maze1, &MazeVertex[5], &MazeVertex[7]);
+    graph_ins_edge(&maze1, &MazeVertex[6], &MazeVertex[3]);
+    graph_ins_edge(&maze1, &MazeVertex[6], &MazeVertex[7]);
+    graph_ins_edge(&maze1, &MazeVertex[7], &MazeVertex[4]);
+    graph_ins_edge(&maze1, &MazeVertex[7], &MazeVertex[5]);
+    graph_ins_edge(&maze1, &MazeVertex[7], &MazeVertex[6]);
+
+    /* insert edges for Maze 2 */
+    graph_ins_edge(&maze2, &MazeVertex[1], &MazeVertex[3]);
+    graph_ins_edge(&maze2, &MazeVertex[1], &MazeVertex[4]);
+    graph_ins_edge(&maze2, &MazeVertex[2], &MazeVertex[4]);
+    graph_ins_edge(&maze2, &MazeVertex[3], &MazeVertex[1]);
+    graph_ins_edge(&maze2, &MazeVertex[3], &MazeVertex[6]);
+    graph_ins_edge(&maze2, &MazeVertex[4], &MazeVertex[1]);
+    graph_ins_edge(&maze2, &MazeVertex[4], &MazeVertex[2]);
+    graph_ins_edge(&maze2, &MazeVertex[5], &MazeVertex[7]);
+    graph_ins_edge(&maze2, &MazeVertex[6], &MazeVertex[3]);
+    graph_ins_edge(&maze2, &MazeVertex[7], &MazeVertex[5]);
+
+    /* defines start/end vertices */
+    char start = *(char *)MazeVertex[1].data;
+    char finish = *(char *)MazeVertex[7].data;
+
+    /* determine whether maze exits are reachable and print results */
+    printf("Maze 1 has ");
+    if (isExitReachable(&maze1, start, finish))
+    {
+        printf("an exit\n");
+    }
+    else
+    {
+        printf("no exit\n");
+    }
+
+    printf("Maze 2 has ");
+    if (isExitReachable(&maze2, start, finish))
+    {
+        printf("an exit\n");
+    }
+    else
+    {
+        printf("no exit\n");
+    }
+}
+
+/* match function for vertices will return 1 if strings match and 0 otherwise */
+int matchStrings(const void *data1, const void *data2)
+{
+    if (*(char *)data1 == *(char *)data2)
+        return 1;
+    else
+        return 0;
+}
+
+/* finds and returns vertex corresponding to desired room name */
+BfsVertex *findVertex(Graph *pMaze, const void *data)
+{
+    ListElmt *element;
+
+    /* 
+     * goes through list of vertices and looks for match with data value passed 
+     * to function
+     */
+    for (element = list_head(&pMaze->adjlists); element != NULL; element
+        = list_next(element)) {
+        if (pMaze->match(data, (char *)
+            ((BfsVertex *)((AdjList *)list_data(element))->vertex)->data))
+        {
+            return (BfsVertex *)((AdjList *)list_data(element))->vertex;
+        }
+    }
+
+    /* match has not been found */
+    fprintf(stderr, "Vertex not found\n");
+    exit(EXIT_FAILURE);
+}
+
+/* determines whether maze exit can be reached */
+int isExitReachable(Graph *pMaze, char entrance, char exit)
+{
+    List hops;
+    BfsVertex *startVertex, *endVertex;
+
+    list_init(&hops, NULL);
+
+    /* finds vertex corresponding to starting room name */
+    startVertex = findVertex(pMaze, &entrance);
+
+    /* performs bfs with starting vertex */
+    if (bfs(pMaze, startVertex, &hops) != 0)
+    {
+        fprintf(stderr, "failed bfs\n");
+        return (-1);
+    }
+
+    /* 
+     * finds vertex corresponding to ending room name, checks to see if it is 
+     * black, if so maze has an exit else maze has no exit 
+     */
+    endVertex = findVertex(pMaze, &exit);
+    if (endVertex->color == black)
+        return 1;
+    else
+        return 0;
+}
