@@ -1,0 +1,95 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <limits.h>
+
+#define INSERTS_PER_READING 1000
+#define NUMREADS 60
+
+/* allocates memory and checks for success */
+void *SafeMalloc(int amount, size_t size)
+{
+    void *vp;                                                       
+    if ((vp = malloc(amount * size)) == NULL)                       
+    {
+        fprintf(stderr, "Out of memory\n");
+        exit(EXIT_FAILURE);
+    }
+    return(vp);                                                     
+}
+
+/* 
+ * returns array containing elements of original array plus new value inserted 
+ * at given index... checks whether array is empty and if so, returns an array
+ * containing enough space for one int, else creates an array with space for an
+ * additional int, copies all ints up to the desired index, inserts the new int
+ * at desired index, then copies all remaining ints
+ */
+int *insert(int *array, int length, int index, int value)
+{
+    int *newArray;                                                  
+    if (length == 0)                                                
+    {
+        newArray = SafeMalloc(1, sizeof(int));
+        return(newArray);
+    }
+    else
+    {
+        newArray = SafeMalloc(length + 1, sizeof(int));            
+        for (int count = 0; count < index; ++count)                 
+        {
+            newArray[count] = array[count];
+        }
+        newArray[index] = value;                                    
+        for (int count = index; count < length; ++count)           
+        {
+            newArray[count + 1] = array[count];
+        }
+        free(array);                                               
+        return(newArray);                                           
+    }
+}
+
+/* generates random integer using modulo division */
+int GenRandInt(int lower, int upper)
+{
+    return((rand() % (upper - lower + 1)) + lower);                 
+}
+
+int main(void)
+{
+    int length = 0, *array = NULL;                                  
+    clock_t startTime, stopTime;                                    
+    srand(time(NULL));
+    /* prints table title */
+    printf("Array length     Seconds per insert\n");
+    /*
+     * outer loop calculates the amount of time it takes to do a specified
+     * number of readings
+     */
+    for (int loopCount = 0; loopCount < NUMREADS; ++loopCount)      
+    {
+        startTime = clock();
+        /*
+         * inner loop inserts a random integer at a random index a specified
+         * number of times
+         */
+        for (int insCount = 0; insCount < INSERTS_PER_READING; ++insCount)
+        {
+            int index = GenRandInt(0, length);
+            int value = GenRandInt(0, INT_MAX);
+            array = insert(array, length, index, value);
+            ++length;
+        }
+        stopTime = clock();                                        
+        double timePerInsert = (double)(stopTime - startTime) / 
+            INSERTS_PER_READING;       /* calculates elapsed time for readings*/
+        /* 
+         * prints accumulating length of array and time per random integer 
+         * insert
+         */
+        printf("%12d %22.3f\n", length, timePerInsert);             
+    }
+    free(array);                                                    
+    return(EXIT_SUCCESS);                                           
+}
