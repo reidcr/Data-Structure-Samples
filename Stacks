@@ -1,0 +1,129 @@
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "stack.h"
+
+#define RADIX 10                       /* used to separate unit/carry digits*/
+
+/* allocates memory for an integer */
+int *allocateNewInt(int value)
+{
+    int *pNewInt;
+    pNewInt = (int *)malloc(sizeof(int));
+    if (pNewInt == NULL)
+    {
+        fprintf(stderr, "Out of memory");
+        exit(EXIT_FAILURE);
+    }
+
+    *pNewInt = value;
+    return(pNewInt);
+}
+
+/* converts an operand string to an integer and allocates memory for it */
+int *allocateNewOperand(const char *operandString)
+{
+    return(allocateNewInt(atoi(operandString)));
+}
+
+/* adds numbers too large to be represented in a long variable */
+void addLargeNumbers(const char *pNum1, const char *pNum2)
+{
+    /* defines stacks and other necessary variables */
+    Stack numStack1, numStack2, resultStack;
+    int *pIntOp1, *pIntOp2, *pIntResult;
+    int result = 0;
+    char digit;
+
+    /* initialize the stacks */
+    stack_init(&numStack1, free);
+    stack_init(&numStack2, free);
+    stack_init(&resultStack, free);
+
+    /* 
+     * reads digits from 1st and 2nd operands and stores them on their 
+     * respective stacks
+     */
+    for (int i = 0; i < (int)strlen(pNum1); ++i)
+    {
+        digit = pNum1[i];
+        stack_push(&numStack1, allocateNewOperand(&digit));
+    }
+    for (int i = 0; i < (int)strlen(pNum2); ++i)
+    {
+        digit = pNum2[i];
+        stack_push(&numStack2, allocateNewOperand(&digit));
+    }
+
+    /* executes as long as at least one stack is not empty */
+    while (stack_size(&numStack1) != 0 || stack_size(&numStack2) != 0)
+    {
+        /* pops numbers from each non-empty stack and adds them to result*/
+        if (stack_size(&numStack1) != 0)
+        {
+            stack_pop(&numStack1, &pIntOp1);
+            result += *pIntOp1;
+            free(pIntOp1);
+        }
+        if (stack_size(&numStack2) != 0)
+        {
+            stack_pop(&numStack2, &pIntOp2);
+            result += *pIntOp2;
+            free(pIntOp2);
+        }
+
+        /* pushes unit part of addition onto result stack*/
+        stack_push(&resultStack, allocateNewInt(result % RADIX));
+
+        /* stores carry part of addition in result*/
+        result = result / RADIX;
+    }
+
+    /* push result onto result stack if it is not zero*/
+    if (result != 0)
+    {
+        stack_push(&resultStack, allocateNewInt(result));
+    }
+
+    /* pop numbers from the result stack and display them*/
+    printf("Result = ");
+    while (stack_size(&resultStack) != 0)
+    {
+        stack_pop(&resultStack, &pIntResult);
+        printf("%d", *pIntResult);
+    }
+    printf("\n");
+
+    /* destroy the stacks */
+    stack_destroy(&numStack1);
+    stack_destroy(&numStack2);
+    stack_destroy(&resultStack);
+
+    return;
+}
+
+int main(void)
+{
+    /* prints max long value for reference purposes */
+    printf("max long is %ld\n\n", LONG_MAX);
+
+    /* 
+     * following examples call addLargeNumbers function with hardcoded values 3
+     * times
+     */
+    char op1[] = "3149823703";
+    char op2[] = "3150610535";
+    printf("Adding %s and %s\n", op1, op2);
+    addLargeNumbers(op1, op2);
+    char op3[] = "6263024404";
+    char op4[] = "6028703173";
+    printf("\nAdding %s and %s\n", op3, op4);
+    addLargeNumbers(op3, op4);
+    char op5[] = "6123456789";
+    char op6[] = "6987654321";
+    printf("\nAdding %s and %s\n", op5, op6);
+    addLargeNumbers(op5, op6);
+    return(EXIT_SUCCESS);
+}
