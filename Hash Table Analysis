@@ -1,0 +1,320 @@
+/*
+ * modified version of chtbl.h
+ */
+#ifndef C3A5_CHTBL_H
+#define C3A5_CHTBL_H
+
+#include <stdlib.h>
+
+#include "list.h"
+
+ /* Define a structure for chained hash tables. */
+typedef struct CHTbl_ {
+
+    int buckets;
+
+    int (*h)(const void *key);
+    int (*match)(const void *key1, const void *key2);
+    void (*destroy)(void *data);
+
+    int size;
+    List *table;
+
+    /* USED FOR AUTO-RESIZING HASH TABLE */
+    double maxLoadFactor, resizeMultiplier;
+
+} CHTbl;
+
+/* Public Interface */
+int chtbl_init(CHTbl *htbl, int buckets, int(*h)(const void *key), int(*match)(
+    const void *key1, const void *key2), void(*destroy)(void *data), 
+    double maxLoadFactor, double resizeMultiplier);
+
+void chtbl_destroy(CHTbl *htbl);
+
+int chtbl_insert(CHTbl *htbl, const void *data);
+
+int chtbl_remove(CHTbl *htbl, void **data);
+
+int chtbl_lookup(const CHTbl *htbl, void **data);
+
+#define chtbl_size(htbl) ((htbl)->size)
+
+#endif
+
+/*
+ * modified version of chtbl.c
+ */
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "list.h"
+#include "C3A5_chtbl.h"
+
+#define HASHMULT 0.618                  /* USED FOR MULTIPLICATION HASH METHOD*/
+
+int chtbl_init(CHTbl *htbl, int buckets, int(*h)(const void *key), int(*match)(
+    const void *key1, const void *key2), void(*destroy)(void*data),
+    double maxLoadFactor, double resizeMultiplier) {
+
+    int i;
+
+    /* Allocate space for the hash table. */
+    if ((htbl->table = (List *)malloc(buckets * sizeof(List))) == NULL)
+        return -1;
+
+    /* Initialize the buckets. */
+    htbl->buckets = buckets;
+
+    for (i = 0; i < htbl->buckets; i++)
+        list_init(&htbl->table[i], destroy);
+
+    /* ENCAPSULATE FUNCTIONS AND STRUCT OBJECT */
+    htbl->h = h;
+    htbl->match = match;
+    htbl->destroy = destroy;
+    htbl->maxLoadFactor = maxLoadFactor;
+    htbl->resizeMultiplier = resizeMultiplier;
+
+    /* Initialize the number of elements in the table. */
+    htbl->size = 0;
+
+    return 0;
+}
+
+void chtbl_destroy(CHTbl *htbl) {
+
+    int i;
+
+    /* Destroy each bucket. */
+    for (i = 0; i < htbl->buckets; i++) {
+        list_destroy(&htbl->table[i]);
+    }
+
+    /* Free the storage allocated for the hash table. */
+    free(htbl->table);
+
+    /* No operations are allowed now, but clear the structure as a
+     * precaution. */
+    memset(htbl, 0, sizeof(CHTbl));
+}
+
+int chtbl_insert(CHTbl *htbl, const void *data) {
+
+    void *temp;
+    int bucket, retval;
+    /* LIST ELEMENTS FOR RESIZING HASH TABLE */
+    ListElmt *element;
+    /* TEMPORARY VARIABLE FOR NEW HASH TABLE */
+    CHTbl tempTable;
+
+    /* Do nothing if the data is already in the table. */
+    temp = (void *)data;
+
+    if (chtbl_lookup(htbl, &temp) == 0)
+        return 1;
+
+    if ((((double)htbl->size + 1) / 
+        (double)htbl->buckets) > htbl->maxLoadFactor)
+    {
+        /* INITIALIZE A NEW HASH TABLE WITH INCREASED SIZE */
+        chtbl_init(&tempTable, (int)(htbl->buckets * htbl->resizeMultiplier),
+            htbl->h, htbl->match, NULL, htbl->maxLoadFactor,
+            htbl->resizeMultiplier);
+        /* 
+         * SET DESTROY FUNCTION OF EACH BUCKET TO NULL TO PREVENT DANGLING 
+         * POINTERS
+         */
+        for (int i = 0; i < htbl->buckets; ++i)
+        {
+            htbl->table[i].destroy = NULL;
+        }
+        /* TRANSFER DATA FROM OLD TABLE TO NEW TABLE */
+        for (int i = 0; i < htbl->buckets; ++i)
+        {
+            for (element = list_head(&htbl->table[i]); element != NULL; element
+                = list_next(element))
+            {
+                chtbl_insert(&tempTable, element->data);
+            }
+        }
+        /* DESTROY OLD TABLE */
+        chtbl_destroy(htbl);
+
+        /* SET CURRENT TABLE TO NEW TABLE */
+        *htbl = *&tempTable;
+        /* HASH THE KEY. */
+        bucket = (int)floor(htbl->buckets * fmod(htbl->h(data) * HASHMULT, 
+            1.0));
+
+        /* 
+         * Insert the data into the bucket (data has been modified but temp 
+         * variable still has the data we want to insert). 
+         */
+        if ((retval = list_ins_next(&htbl->table[bucket], NULL, temp)) == 0)
+            htbl->size++;
+        return(0);
+    }
+    else
+    {
+        /* HASH THE KEY. */
+        bucket = (int)floor(htbl->buckets * fmod(htbl->h(data) * HASHMULT, 
+            1.0));
+
+        /* Insert the data into the bucket. */
+        if ((retval = list_ins_next(&htbl->table[bucket], NULL, data)) == 0)
+            htbl->size++;
+        return retval;
+    }
+}
+
+int chtbl_remove(CHTbl *htbl, void **data) {
+
+    ListElmt *element, *prev;
+    int bucket;
+
+    /* HASH THE KEY. */
+    bucket = (int)floor(htbl->buckets * fmod(htbl->h(*data) * HASHMULT, 1.0));
+
+    /* Search for the data in the bucket. */
+    prev = NULL;
+
+    for (element = list_head(&htbl->table[bucket]); element != NULL; element
+        = list_next(element)) {
+
+        if (htbl->match(*data, list_data(element))) {
+
+            /* Remove the data from the bucket. */
+            if (list_rem_next(&htbl->table[bucket], prev, data) == 0) {
+                htbl->size--;
+                return 0;
+            }
+            else {
+                return -1;
+            }
+        }
+
+        prev = element;
+    }
+
+    /* Return that the data was not found. */
+
+    return -1;
+}
+
+int chtbl_lookup(const CHTbl *htbl, void **data) {
+
+    ListElmt *element;
+    int bucket;
+
+    /* HASH THE KEY. */
+    bucket = (int)floor(htbl->buckets * fmod(htbl->h(*data) * HASHMULT, 1.0));
+
+    /* Search for the data in the bucket. */
+    for (element = list_head(&htbl->table[bucket]); element != NULL; element
+        = list_next(element)) {
+
+        if (htbl->match(*data, list_data(element))) {
+
+            /* Pass back the data from the table. */
+            *data = list_data(element);
+            return 0;
+        }
+    }
+
+    /* Return that the data was not found. */
+
+    return -1;
+}
+
+/*
+ * main driver code
+ */
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "C3A5_chtbl.h"
+
+#define HASHMULT 0.618                 /* USED FOR MULTIPLICATION HASH METHOD*/
+#define TABLESIZE 6                    /* BEGINNING SIZE OF HASH TABLE*/
+#define MAXLDFACT 0.5                  /* SPECIFIED MAX LOAD FACTOR */
+#define RESIZEMULT 2.0                 /* SPECIFIED RESIZE MULTIPLIER */
+
+/* PRINTS FATAL ERROR AND EXITS */
+void fatalError(const char *pMessage)
+{
+    fprintf(stderr, pMessage);
+    exit(EXIT_FAILURE);
+}
+
+/* HASH FUNCTION RETURNS INT EQ. OF ID STRING SENT TO IT */
+int hashID(const void *key)
+{
+    int ID = atoi(key);
+    return(ID);
+}
+
+/* MATCH FUNCTION */
+int matchIDs(const void *key1, const void *key2)
+{
+    return(strcmp((const char *)key1, (const char *)key2) == 0);
+}
+
+void lookupID(const CHTbl *htbl, const char *lookup)
+{
+    int bucket;
+
+    /* HASH THE KEY. */
+    bucket = (int)floor(htbl->buckets * fmod(htbl->h(lookup) * HASHMULT, 1.0));
+
+    /* LOOK FOR ID IN TABLE, IF FOUND RETURN BUCKET, ELSE RETURN NOT FOUND*/
+    if (chtbl_lookup(htbl, (void **)(&lookup)) == 0)
+    {
+        printf("ID %s (inserted before auto-resizing) found in bucket %d of "
+            "table!\n", lookup, bucket);
+    }
+    else
+    {
+        printf("ID %s (not in original ID array) not found in any bucket of "
+            "table!\n", lookup);
+    }
+    return;
+}
+
+int main(void)
+{
+    /* SET UP VARIABLES */
+    const char *IDs[] = {"479720", "346231", "10431", "10759", "367893",
+        "210777", "464946", "370896", "746839", "190", "357611", "353555",
+        "10944"};
+    const char *IDNotInTable = "123456";
+    CHTbl IDTable;
+
+    /* INITIALIZE THE HASH TABLE */
+    chtbl_init(&IDTable, TABLESIZE, hashID, matchIDs, NULL, MAXLDFACT, 
+        RESIZEMULT);
+
+    /* INSERT SOME ID'S */
+    for (int i = 0; i < sizeof(IDs) / sizeof(IDs[0]); ++i)
+    {
+        if (chtbl_insert(&IDTable, IDs[i]) != 0)
+        {
+            fatalError("Failed to insert into hash table");
+        }
+        else
+        {
+            printf("buckets %d, elements %d, lf %.2f, max lf %.1f, resize "
+                "multiplier %.1f\n", IDTable.buckets, IDTable.size,
+                (double)IDTable.size / (double)IDTable.buckets, 
+                IDTable.maxLoadFactor, IDTable.resizeMultiplier);
+        }
+    }
+
+    /* DO SOME LOOKUPS */
+    lookupID(&IDTable, IDs[0]);
+    lookupID(&IDTable, IDNotInTable);
+}
