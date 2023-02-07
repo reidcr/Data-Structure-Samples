@@ -1,0 +1,181 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+
+#include "list.h"
+
+#define DELTA 10e-7                    /* for checking whether double var = 0*/
+#define NEGTEST -1                     /* for printing case of coeff = -1*/
+
+/* allocates memory and checks for success */
+void *SafeMalloc(int amount, size_t size)
+{
+    void *vp;
+    if ((vp = malloc(amount * size)) == NULL)
+    {
+        fprintf(stderr, "Out of memory\n");
+        exit(EXIT_FAILURE);
+    }
+    return(vp);
+}
+
+/* adds a new element to the linked list representing the polynomial */
+void appendTerm(List *polynomial, double constant)
+{
+    printf("Adding %lf to polynomial...\n", constant);/* status message*/
+    /* sets pointer for current polynomial term*/
+    double *pDouble = (double *)SafeMalloc(1, sizeof(double));
+    *pDouble = constant;     /* initializes memory location to polynomial term*/
+    /* adds next term to polynomial and checks for pass status = 0*/
+    if (list_ins_next(polynomial, list_tail(polynomial), pDouble) != 0)
+    {
+        fprintf(stderr, "insert failed...\n");
+        exit(EXIT_FAILURE);
+    }
+    return;
+}
+
+/* prints the completed polynomial */
+void display(List *pPolynomial)
+{
+    printf("Displaying the polynomial...\n");/* status message*/
+    /* sets current list element to head pointer*/
+    ListElmt *pElmt = list_head(pPolynomial);
+    printf("Polynomial: ");
+    /* loops through each polynomial coeff, order is 1 less than list size*/
+    for (int count = pPolynomial->size - 1; count >= 0; --count)
+    {
+        /* finds current polynomial coefficient value*/
+        double *pDouble = (double *)list_data(pElmt);
+        /* 
+         * this case corresponds to the beginning of the polynomial so there 
+         * will be no sign prefix
+         */
+        if (count == (pPolynomial->size - 1))
+        {
+            /* prints polynomial term for cases of +/-1 and default*/
+            if ((int)*pDouble == 1)
+            {
+                printf("x^%d", count);
+            }
+            else if ((int)*pDouble == NEGTEST)
+            {
+                printf("-x^%d", count);
+            }
+            else
+            {
+                printf("%lfx^%d", *pDouble, count);
+
+            }
+        }
+        /* 
+         * this case corresponds to all remaining terms and checks whether 
+         * coefficient is 0 by comparing to delta, else doesn't print
+         */
+        else if (*pDouble > DELTA || *pDouble < -DELTA)
+        {
+            /* 
+             * this case corresponds to last term and prints sign prefix if 
+             * positive
+             */
+            if (count == 0)
+            {
+                if (*pDouble > 0)
+                {
+                    printf("+%lf\n", *pDouble);
+                }
+                else
+                {
+                    printf("%lf\n", *pDouble);
+                }
+            }
+            /* 
+             * this case corresponds to term with power of 1 and prints sign 
+             * prefix if positive
+             */
+            else if (count == 1)
+            {
+                if (*pDouble > 0)
+                {
+                    printf("+%lfx", *pDouble);
+                }
+                else
+                {
+                    printf("%lfx", *pDouble);
+                }
+            }
+            /* 
+             * this case corresponds to the coefficient = 1 and prints sign 
+             * prefix
+             */
+            else if ((int)*pDouble == 1)
+            {
+                printf("+x^%d", count);
+            }
+            /* this case corresponds to the coefficient = -1 */
+            else if ((int)*pDouble == NEGTEST)
+            {
+                printf("x^%d", count);
+            }
+            /* 
+             * remaining two cases correspond to default and print sign prefix 
+             * if positive
+             */
+            else if (*pDouble > 0)
+            {
+                printf("+%lfx^%d", *pDouble, count);
+            }
+            else if (*pDouble < 0)
+            {
+                printf("%lfx^%d", *pDouble, count);
+            }
+        }
+        pElmt = list_next(pElmt);      /* updates polynomial term*/
+    }
+ }
+
+/* evaluates the polynomial and returns the result */
+double evaluate(List *pPolynomial, double x)
+{
+    printf("Evaluating the polynomial...\n");/* status message*/
+    double sum = 0;                    /* initializes total sum variable*/
+    /* sets current list element to head pointer*/
+    ListElmt *pElmt = list_head(pPolynomial);
+    /* 
+     * performs math for each polynomial term and updates running total, order
+     * is 1 less than list size
+     */
+    for (int count = pPolynomial->size - 1; count >= 0; --count)
+    {
+        double *pDouble = (double *)list_data(pElmt);
+        sum += (*pDouble * pow(x, count));
+        pElmt = list_next(pElmt);
+    }
+    return(sum);                       /* returns value of polynomial*/
+}
+
+int main(void)
+{
+    int order;
+    double xValue;
+    List polynomial;
+    list_init(&polynomial, free);      /* initializes linked list*/
+    printf("Enter the polynomial order: ");
+    scanf("%d", &order);
+    /* loops through polynomial until fully created*/
+    for (; order >= 0; --order)
+    {
+        double coeff;
+        printf("Enter a polynomial coefficient: ");
+        scanf("%lf", &coeff);
+        appendTerm(&polynomial, coeff);/* adds new term to polynomial*/
+    }
+    display(&polynomial);              /* displays polynomial*/
+    printf("\nEnter a value for x: ");
+    scanf("%lf", &xValue);
+    /* calculates polynomial for given value of x*/
+    double total = evaluate(&polynomial, xValue);
+    printf("The total of the polynomial is %f\n", total);
+    list_destroy(&polynomial);         /* frees all memory used for polynomial*/
+    exit(EXIT_SUCCESS);
+}
