@@ -1,0 +1,141 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "heap.h"
+
+/* a person to be sorted */
+typedef struct Person_ {
+    const char *name;
+    int age;
+    double height;
+} Person;
+
+/* function prototypes */
+void fatalError(const char *pMessage);
+int comparePeopleByName(const void *key1, const void *key2);
+int comparePeopleByAge(const void *key1, const void *key2);
+int comparePeopleByHeight(const void *key1, const void *key2);
+void outputSorted(const Person people[], int numPeople, 
+    int (*compare)(const void *pKey1, const void *pKey2));
+void outputPerson(const Person *pPerson);
+
+int main()
+{
+    int numPeople;
+    /* array of people to be sorted */
+    Person people[] = {
+        { "Marvin the Martian", 25, 11.9 },
+        { "Yosemite Sam", 89, 30.1 },
+        { "Road Runner", 40, 34.5 },
+        { "Granny", 107, 48.1 },
+        { "Lola Bunny", 19, 71.9 },
+        { "Foghorn Leghorn", 20, 34.7 },
+        { "Daffy Duck", 17, 55.9 },
+        { "Porky Pig", 30, 14.9 },
+        { "Wile E. Coyote", 31, 22.2 },
+        { "Speedy Gonzales", 33, 45.2 },
+        { "Sylvester the Cat", 15, 55.3 },
+        { "Tasmanian Devil", 18, 24.3 },
+        { "Tweety", 14, 8.9 },
+        { "Pepe Le Pew", 34, 55.5 },
+        { "Elmer Fudd", 46, 72.4 },
+        { "Bugs Bunny", 23, 64.5 },
+    };
+    numPeople = sizeof(people) / sizeof(*people);                /* array size*/
+
+    /* calls various compare functions and outputs result */
+    printf("Sorting people by name...\n");
+    outputSorted(people, numPeople, comparePeopleByName);
+    printf("\nSorting people by age...\n");
+    outputSorted(people, numPeople, comparePeopleByAge);
+    printf("\nSorting people by height...\n");
+    outputSorted(people, numPeople, comparePeopleByHeight);
+
+    return(EXIT_SUCCESS);
+}
+
+/* outputs error message and quits */
+void fatalError(const char *pMessage)
+{
+    fprintf(stderr, pMessage);
+    exit(EXIT_FAILURE);
+}
+
+/* compares two name strings to output in ascending order */
+int comparePeopleByName(const void *key1, const void *key2)
+{
+    Person *pPerson1 = (Person *)key1;
+    Person *pPerson2 = (Person *)key2;
+
+    if (strcmp(pPerson1->name, pPerson2->name) < 0)
+        return 1;
+    if (strcmp(pPerson1->name, pPerson2->name) > 0)
+        return -1;
+
+    return 0;
+}
+
+/* compares two age values to output in ascending order */
+int comparePeopleByAge(const void *key1, const void *key2)
+{
+    Person *pPerson1 = (Person *)key1;
+    Person *pPerson2 = (Person *)key2;
+
+    if (pPerson1->age > pPerson2->age)
+        return -1;
+    if (pPerson1->age < pPerson2->age)
+        return 1;
+
+    return 0;
+}
+
+/* compares two height values to output in ascending order */
+int comparePeopleByHeight(const void *key1, const void *key2)
+{
+    Person *pPerson1 = (Person *)key1;
+    Person *pPerson2 = (Person *)key2;
+
+    if (pPerson1->height > pPerson2->height)
+        return -1;
+    if (pPerson1->height < pPerson2->height)
+        return 1;
+
+    return 0;
+}
+
+void outputSorted(const Person People[], int numPeople, 
+    int (*compare)(const void *pKey1, const void *pKey2))
+{
+    Heap bunchOfPeople;
+    void *data;
+    
+    /* initializes heap of people */
+    heap_init(&bunchOfPeople, compare, NULL);
+
+    /* prints original array of people while inserting into heap */
+    printf("Original order of people:\n");
+    for (int count = 0; count < numPeople; ++count)
+    {
+        outputPerson(&People[count]);
+        if (heap_insert(&bunchOfPeople, &People[count]) != 0)
+            fatalError("Failed to insert into heap\n");
+    }
+
+    /* prints sorted array of people while extracting from heap */
+    printf("\nSorted order of people:\n");
+    while (heap_extract(&bunchOfPeople, &data) == 0)
+        outputPerson((Person *)data);
+
+    heap_destroy(&bunchOfPeople);
+
+    return;
+}
+
+/* prints characteristics of a specific person */
+void outputPerson(const Person *pPerson)
+{
+    printf("Person = %s, Age (years) = %d, Height (inches) = %.1f\n", 
+        pPerson->name, pPerson->age, pPerson->height);
+    return;
+}
