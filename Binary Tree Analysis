@@ -1,0 +1,318 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "bitree.h"
+#include "list.h"
+#include "traverse.h"
+
+/* function prototypes for tree analysis */
+void fatalError(const char *message);
+int count_leaves(BiTree *tree);
+int traverseNodesForLeaves(BiTreeNode *node, int numLeaves);
+int count_non_leaves(BiTree *tree);
+int traverseNodesForNonLeaves(BiTreeNode *node, int numLeaves);
+int get_height(BiTree *tree);
+int nodeHeight(BiTreeNode *node);
+void print_pre_order(BiTree *tree, void (*print)(const void *data));
+void printList(const List *treeList);
+void print_in_order(BiTree *tree, void (*print)(const void *data));
+void print_post_order(BiTree *tree, void (*print)(const void *data));
+void remove_leaves(BiTree *tree);
+void traverseNodesRemoveLeaves(BiTree *tree, BiTreeNode *node);
+
+int main(void)
+{
+    /* defines variables for trees to be used for function demonstrations*/
+    BiTree tree1, tree2;
+
+    /* defines and initializes print function pointer*/
+    void (*print)(const void *data) = &printList;
+
+    /* construct Tree #1 */
+    int treeArray1[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    int *ptrTreeArray1[] = {&treeArray1[0], &treeArray1[1], &treeArray1[2],
+        &treeArray1[3], &treeArray1[4], &treeArray1[5], &treeArray1[6],
+        &treeArray1[7], &treeArray1[8]};
+    bitree_init(&tree1, NULL);
+    if (bitree_ins_left(&tree1, NULL, ptrTreeArray1[0]) != 0)
+        fatalError("Failed to insert 1 into tree");
+    if (bitree_ins_left(&tree1, tree1.root, ptrTreeArray1[1]) != 0)
+        fatalError("Failed to insert 2 into tree");
+    if (bitree_ins_right(&tree1, tree1.root, ptrTreeArray1[2]) != 0)
+        fatalError("Failed to insert 3 into tree");
+    if (bitree_ins_left(&tree1, tree1.root->left, ptrTreeArray1[3]) != 0)
+        fatalError("Failed to insert 4 into tree");
+    if (bitree_ins_left(&tree1, tree1.root->right, ptrTreeArray1[4]) != 0)
+        fatalError("Failed to insert 5 into tree");
+    if (bitree_ins_right(&tree1, tree1.root->right, ptrTreeArray1[5]) != 0)
+        fatalError("Failed to insert 6 into tree");
+    if (bitree_ins_left(&tree1, tree1.root->left->left, ptrTreeArray1[6]) != 0)
+        fatalError("Failed to insert 7 into tree");
+    if (bitree_ins_right(&tree1, tree1.root->right->right, 
+        ptrTreeArray1[7]) != 0)
+        fatalError("Failed to insert 8 into tree");
+    if (bitree_ins_right(&tree1, tree1.root->right->right->right, 
+        ptrTreeArray1[8]) != 0)
+        fatalError("Failed to insert 9 into tree");
+
+    /* construct Tree #2 */
+    int treeArray2[] = {6, 4, 8, 2, 5, 7, 9, 1, 3};
+    int *ptrTreeArray2[] = {&treeArray2[0], &treeArray2[1], &treeArray2[2],
+        &treeArray2[3], &treeArray2[4], &treeArray2[5], &treeArray2[6],
+        &treeArray2[7], &treeArray2[8]};
+    bitree_init(&tree2, NULL);
+    if (bitree_ins_left(&tree2, NULL, ptrTreeArray2[0]) != 0)
+        fatalError("Failed to insert 6 into tree");
+    if (bitree_ins_left(&tree2, tree2.root, ptrTreeArray2[1]) != 0)
+        fatalError("Failed to insert 4 into tree");
+    if (bitree_ins_right(&tree2, tree2.root, ptrTreeArray2[2]) != 0)
+        fatalError("Failed to insert 8 into tree");
+    if (bitree_ins_left(&tree2, tree2.root->left, ptrTreeArray2[3]) != 0)
+        fatalError("Failed to insert 2 into tree");
+    if (bitree_ins_right(&tree2, tree2.root->left, ptrTreeArray2[4]) != 0)
+        fatalError("Failed to insert 5 into tree");
+    if (bitree_ins_left(&tree2, tree2.root->right, ptrTreeArray2[5]) != 0)
+        fatalError("Failed to insert 7 into tree");
+    if (bitree_ins_right(&tree2, tree2.root->right, ptrTreeArray2[6]) != 0)
+        fatalError("Failed to insert 9 into tree");
+    if (bitree_ins_left(&tree2, tree2.root->left->left, ptrTreeArray2[7]) != 0)
+        fatalError("Failed to insert 1 into tree");
+    if (bitree_ins_right(&tree2, tree2.root->left->left, ptrTreeArray2[8]) != 0)
+        fatalError("Failed to insert 3 into tree");
+
+    /* count leaves, non-leaves, and height for both trees */
+    printf("Number of leaves in Tree 1 is %d\n", count_leaves(&tree1));
+    printf("Number of leaves in Tree 2 is %d\n", count_leaves(&tree2));
+    printf("Number of non-leaves in Tree 1 is %d\n", count_non_leaves(&tree1));
+    printf("Number of non-leaves in Tree 2 is %d\n", count_non_leaves(&tree2));
+    printf("Height of Tree 1 is %d\n", get_height(&tree1));
+    printf("Height of Tree 2 is %d\n", get_height(&tree2));
+
+    /* pre-order print elements in both trees */
+    printf("Pre-order elements in Tree 1: ");
+    print_pre_order(&tree1, print);
+    printf("Pre-order elements in Tree 2: ");
+    print_pre_order(&tree2, print);
+
+    /* in-order print elements in both trees */
+    printf("In-order elements in Tree 1: ");
+    print_in_order(&tree1, print);
+    printf("In-order elements in Tree 2: ");
+    print_in_order(&tree2, print);
+
+    /* post-order print elements in both trees */
+    printf("Post-order elements in Tree 1: ");
+    print_post_order(&tree1, print);
+    printf("Post-order elements in Tree 2: ");
+    print_post_order(&tree2, print);
+
+    /* remove leaves from both trees */
+    remove_leaves(&tree1);
+    printf("Tree 1 with leaves removed: ");
+    print_pre_order(&tree1, print);
+    remove_leaves(&tree2);
+    printf("Tree 2 with leaves removed: ");
+    print_pre_order(&tree2, print);
+
+    /* free trees since they are no longer needed */
+    bitree_destroy(&tree1);
+    bitree_destroy(&tree2);
+
+    return(EXIT_SUCCESS);
+}
+
+/* outputs message when error occurs */
+void fatalError(const char *message)
+{
+    fprintf(stderr, message);
+    exit(EXIT_FAILURE);
+}
+
+/* 
+ * counts number of leaves in a tree
+ * function will extract the root from the tree then call a recursive function
+ * to start at the root and visit all the nodes, check whether they are leaves,
+ * and count the number of leaves visited
+ */
+int count_leaves(BiTree *tree)
+{
+    int numLeaves = 0;
+    BiTreeNode *node = tree->root;
+    return(traverseNodesForLeaves(node, numLeaves));
+}
+
+/* traverses tree and counts the number of leaves*/
+int traverseNodesForLeaves(BiTreeNode *node, int numLeaves)
+{
+    if (node->left != NULL)
+        numLeaves = traverseNodesForLeaves(node->left, numLeaves);
+    if (node->right != NULL)
+        numLeaves = traverseNodesForLeaves(node->right, numLeaves);
+    if (bitree_is_leaf(node))
+        return(++numLeaves);
+    else
+        return(numLeaves);
+}
+
+/* 
+ * counts number of non-leaves in a tree
+ * function will extract the root from the tree then call a recursive function
+ * to start at the root and visit all the nodes, check whether they are leaves,
+ * and count the number of non-leaves visited
+ */
+int count_non_leaves(BiTree *tree)
+{
+    int numNonLeaves = 0;
+    BiTreeNode *node = tree->root;
+    return(traverseNodesForNonLeaves(node, numNonLeaves));
+}
+
+/* traverses tree and counts the number of non-leaves*/
+int traverseNodesForNonLeaves(BiTreeNode *node, int numNonLeaves)
+{
+    if (node->left != NULL)
+        numNonLeaves = traverseNodesForNonLeaves(node->left, numNonLeaves);
+    if (node->right != NULL)
+        numNonLeaves = traverseNodesForNonLeaves(node->right, numNonLeaves);
+    if (!bitree_is_leaf(node))
+        return(++numNonLeaves);
+    else
+        return(numNonLeaves);
+}
+
+/* 
+ * calculates height of tree
+ * function will extract the root from the tree then call a recursive function
+ * to visit each node in the tree; if node is null function goes back up tree
+ * and starts calculating height, then compares height with maximum calculated
+ * height
+ */
+int get_height(BiTree *tree)
+{
+    BiTreeNode *node = tree->root;
+    return(nodeHeight(node));
+}
+
+/* traverses tree and keeps running total of max height */
+int nodeHeight(BiTreeNode *node)
+{
+    int leftHeight, rightHeight;
+
+    if (node == NULL)
+        return(0);
+    leftHeight = nodeHeight(node->left);
+    rightHeight = nodeHeight(node->right);
+    return(max(leftHeight, rightHeight) + 1);
+}
+
+/* 
+ * prints elements of tree using pre-order traversal
+ * function will extract the root from the tree, construct a pre-eorder list of
+ * all elements in the tree, then call another function to print it
+ */
+void print_pre_order(BiTree *tree, void (*print)(const void *data))
+{
+    List treeList;
+    BiTreeNode *node = tree->root;
+
+    list_init(&treeList, NULL);
+    preorder(node, &treeList);
+    print(&treeList);
+    list_destroy(&treeList);
+    return;
+}
+
+/* prints all elements in a list */
+void printList(const List *treeList)
+{
+    for (ListElmt *pElmt = list_head(treeList); pElmt != NULL; 
+        pElmt = list_next(pElmt))
+        printf(" %d", *(int *)list_data(pElmt));
+    printf("\n");
+    return;
+}
+
+
+/*
+ * prints elements of tree using in-order traversal
+ * function will extract the root from the tree, construct a in-eorder list of
+ * all elements in the tree, then call another function to print it
+ */
+void print_in_order(BiTree *tree, void (*print)(const void *data))
+{
+    List treeList;
+    BiTreeNode *node = tree->root;
+
+    list_init(&treeList, NULL);
+    inorder(node, &treeList);
+    print(&treeList);
+    list_destroy(&treeList);
+    return;
+}
+
+/* prints all elements in a list */
+void printList(const List *treeList)
+{
+    for (ListElmt *pElmt = list_head(treeList); pElmt != NULL; 
+        pElmt = list_next(pElmt))
+        printf(" %d", *(int *)list_data(pElmt));
+    printf("\n");
+    return;
+}
+/*
+ * prints elements of tree using post-order traversal
+ * function will extract the root from the tree, construct a post-eorder list of
+ * all elements in the tree, then call another function to print it
+ */
+void print_post_order(BiTree *tree, void (*print)(const void *data))
+{
+    List treeList;
+    BiTreeNode *node = tree->root;
+
+    list_init(&treeList, NULL);
+    postorder(node, &treeList);
+    print(&treeList);
+    list_destroy(&treeList);
+    return;
+}
+
+/* prints all elements in a list */
+void printList(const List *treeList)
+{
+    for (ListElmt *pElmt = list_head(treeList); pElmt != NULL; 
+        pElmt = list_next(pElmt))
+        printf(" %d", *(int *)list_data(pElmt));
+    printf("\n");
+    return;
+}
+
+/* 
+ * remove leaves from tree
+ * function will extract the root from the tree then call a recursive function
+ * to visit each node in the tree and remove it if it is a leaf
+ */
+void remove_leaves(BiTree *tree)
+{
+    BiTreeNode *node = tree->root;
+    traverseNodesRemoveLeaves(tree, node);
+}
+
+/* recursively traverses tree and removes leaves */
+void traverseNodesRemoveLeaves(BiTree *tree, BiTreeNode *node)
+{
+    if (node->left != NULL)
+    {
+        if (bitree_is_leaf(node->left))
+            bitree_rem_left(tree, node);
+        else
+            traverseNodesRemoveLeaves(tree, node->left);
+    }
+    if (node->right != NULL)
+    {
+        if (bitree_is_leaf(node->right))
+            bitree_rem_right(tree, node);
+        else
+            traverseNodesRemoveLeaves(tree, node->right);
+    }
+    return;
+}
