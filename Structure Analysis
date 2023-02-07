@@ -1,0 +1,185 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "sort.h"
+
+#define MAX_STRING_LENGTH 16           /* max length of string for make/model */
+
+/* structure to be used for each car's characteristics */
+typedef struct Car_
+{
+    char make[MAX_STRING_LENGTH];
+    char model[MAX_STRING_LENGTH];
+    int mpg;    /* Miles per gallon */
+} Car;
+
+/* compares two cars by make then by model if both makes are the same */
+int compareCarsByMakeThenModel(const void *pKey1, const void *pKey2)
+{
+    /* sets pointers for comparison key parameters*/
+    Car *pCar1 = (Car *)pKey1, *pCar2 = (Car *)pKey2;
+
+    /* 
+     * compares "make" strings, return values for strcmp and this compare 
+     * function must have same sign for ascending order 
+     */
+    if (strcmp(pCar1->make, pCar2->make) > 0)
+    {
+        return(1);
+    }
+    else if (strcmp(pCar1->make, pCar2->make) < 0)
+    {
+        return(-1);
+    }
+    /* 
+     * compares "model" strings if both "make" strings are the same, as above 
+     * return values for strcmp and this compare function must have same sign 
+     * for ascending order 
+     */
+    else
+    {
+        if (strcmp(pCar1->model, pCar2->model) > 0)
+        {
+            return(1);
+        }
+        else if (strcmp(pCar1->model, pCar2->model) < 0)
+        {
+            return(-1);
+        }
+        else
+        {
+            return(0);
+        }
+    }
+}
+
+/* compares cars by descending MPG */
+int compareCarsByDescendingMPG(const void *pKey1, const void *pKey2)
+{
+    /* sets pointers for comparison key parameters*/
+    Car *pCar1 = (Car *)pKey1, *pCar2 = (Car *)pKey2;
+
+    /* 
+     * compares both MPG values; for descending order, function must return -1 
+     * if 1st MPG is greater than 2nd, else return 1
+     */
+    if (pCar1->mpg > pCar2->mpg)
+    {
+        return(-1);
+    }
+    else if (pCar1->mpg < pCar2->mpg)
+    {
+        return(1);
+    }
+    else
+    {
+        return(0);
+    }
+}
+
+/* compares two cars by make then descending MPG if both makes are the same*/
+int compareCarsByMakeThenDescendingMPG(const void *pKey1, const void *pKey2)
+{
+    /* sets pointers for comparison key parameters*/
+    Car *pCar1 = (Car *)pKey1, *pCar2 = (Car *)pKey2;
+
+    /*
+     * compares "make" strings, return values for strcmp and this compare
+     * function must have same sign for ascending order
+     */
+    if (strcmp(pCar1->make, pCar2->make) > 0)
+    {
+        return(1);
+    }
+    else if (strcmp(pCar1->make, pCar2->make) < 0)
+    {
+        return(-1);
+    }
+    /*
+     * compares both MPG values; for descending order, function must return -1
+     * if 1st MPG is greater than 2nd, else return 1
+     */
+    else
+    {
+        if (pCar1->mpg > pCar2->mpg)
+        {
+            return(-1);
+        }
+        else if (pCar1->mpg < pCar2->mpg)
+        {
+            return(1);
+        }
+        else
+        {
+            return(0);
+        }
+    }
+}
+
+/* prints list of cars in current state */
+void PrintCars(Car *cars, int carSize)
+{
+    for (int count = 0; count < carSize; ++count)
+    {
+        printf("Make: %s; Model: %s; MPG: %d\n", cars[count].make, 
+            cars[count].model, cars[count].mpg);
+    }
+    return;
+}
+
+int main(void)
+{
+    /* defines and initializes array containing car info */
+    Car cars[] = {
+        { "Toyota", "Camry", 33 },
+        { "Ford", "Focus", 40 },
+        { "Honda", "Accord", 34 },
+        { "Ford", "Mustang", 31 },
+        { "Honda", "Civic", 39 },
+        { "Toyota", "Prius", 48 },
+        { "Honda", "Fit", 35 },
+        { "Toyota", "Corolla", 35 },
+        { "Ford", "Taurus", 28 },
+    };
+
+    /* defines function pointer to be used for each compare function*/
+    int (*compare)(const void *key1, const void *key2);
+    /* size of car info array */
+    int carSize = sizeof(cars) / sizeof(cars[0]);
+    /* prints car info array before sorting */
+    printf("Before sorting:\n");
+    PrintCars(cars, carSize);
+
+    /* sets compare function to compare by make then model, sorts, then prints*/
+    compare = compareCarsByMakeThenModel;
+    if (qksort(cars, carSize, sizeof(Car), 0, carSize - 1, compare) != 0)
+    {
+        printf("sort failed...\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("\nSorting by make then model:\n");
+    PrintCars(cars, carSize);
+
+    /* sets compare function to compare by MPG, sorts, then prints*/
+    compare = compareCarsByDescendingMPG;
+    if (qksort(cars, carSize, sizeof(Car), 0, carSize - 1, compare) != 0)
+    {
+        printf("sort failed...\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("\nSorting by descending MPG:\n");
+    PrintCars(cars, carSize);
+
+    /* sets compare function to compare by make then MPG, sorts, then prints*/
+    compare = compareCarsByMakeThenDescendingMPG;
+    if (qksort(cars, carSize, sizeof(Car), 0, carSize - 1, compare) != 0)
+    {
+        printf("sort failed...\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("\nSorting by make then descending MPG:\n");
+    PrintCars(cars, carSize);
+
+    return(EXIT_SUCCESS);
+}
